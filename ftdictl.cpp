@@ -3,7 +3,6 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <tclap/CmdLine.h>
-#include <kdstring.h>
 
 #include <string>
 #include <vector>
@@ -40,6 +39,8 @@ TCLAP::ValueArg<int>* getArg;
 TCLAP::SwitchArg* dumpSwitch;
 TCLAP::SwitchArg* detachSwitch;
 
+std::vector<std::string> explode(const std::string& str, const std::string& delim, size_t maxCount = 0, size_t start = 0);
+
 bool getPin(int pin)
 {
 	uint8_t vals;
@@ -64,7 +65,9 @@ string findFunctionNameByVal(int val)
 		if (functions[i].val == val)
 			return functions[i].name;
 	}
-	return toString(val);
+	char buf[10];
+	sprintf(buf, "%d", val);
+	return buf;
 }
 
 void printCBUSState(int num)
@@ -89,7 +92,7 @@ void process()
 	for (size_t i = 0; i < vals.size(); i++) {
 		vector<string> parts = explode(vals[i], ":");
 
-		int num = toInt(parts[0]);
+		int num = atoi(parts[0].c_str());
 		string& func = parts[1];
 
 		if (num < 0 || num > 3)
@@ -215,3 +218,33 @@ int main(int argc, char** argv)
 	ftdi_free(ftdi);
 }
 
+std::vector<std::string> explode(const std::string& str, const std::string& delim, size_t maxCount, size_t start)
+{
+	std::vector<std::string> parts;
+	size_t idx = start, delimIdx;
+
+	delimIdx = str.find(delim, idx);
+	if (delimIdx == std::string::npos) {
+		parts.push_back(str);
+		return parts;
+	}
+	do {
+		if (parts.size() == maxCount - 1) {
+			std::string part = str.substr(idx);
+			parts.push_back(part);
+			idx = str.size();
+			break;
+		}
+		std::string part = str.substr(idx, delimIdx - idx);
+		parts.push_back(part);
+		idx = delimIdx + delim.size();
+		delimIdx = str.find(delim, idx);
+	} while (delimIdx != std::string::npos && idx < str.size());
+
+	if (idx < str.size()) {
+		std::string part = str.substr(idx);
+		parts.push_back(part);
+	}
+
+	return parts;
+}
